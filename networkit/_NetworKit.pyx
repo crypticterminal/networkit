@@ -6382,7 +6382,7 @@ cdef extern from "cpp/centrality/DynKatzCentrality.h":
 		bool areDistinguished(node, node) except +
 
 cdef class DynKatzCentrality(Centrality):
-	""" Finds the top-k nodes with highest Katz centralityself.
+	""" Finds the top-k nodes with highest Katz centrality.
 
 	DynKatzCentrality(G, k, groupOnly=False, tolerance=1e-9)
 	"""
@@ -7032,6 +7032,75 @@ cdef class ApproxBetweenness(Centrality):
 
 	def numberOfSamples(self):
 		return (<_ApproxBetweenness*>(self._this)).numberOfSamples()
+
+
+cdef extern from "cpp/centrality/KadabraBetweenness.h":
+	cdef cppclass _KadabraBetweenness "NetworKit::KadabraBetweenness" (_Algorithm):
+		_KadabraBetweenness(_Graph, count, double, double, count, count) except +
+		vector[pair[node, double]] ranking() except +
+		vector[node] topkNodesList() except +
+		vector[double] topkScoresList() except +
+
+cdef class KadabraBetweenness(Algorithm):
+	"""
+		# TODO: Documentation
+
+	Parameters
+	----------
+	G : Graph
+		The input graph.
+	k : count
+		Number of top-k nodes with highest betweenness to be computed
+		(1 <= k <= n.)
+	delta : double
+		Desired confidence for the results.
+	unionSample : count
+		Algorithm parameter # TODO: be more specific
+	startFactor : count
+		Algorithm parameter # TODO: be more specific
+	"""
+
+	def __cinit__(self, Graph G, k = 1, delta = 0.1, err = 0.01,
+				  unionSample = 0, startFactor = 100):
+		self._this = new _KadabraBetweenness(G._this, k, delta, err, unionSample,
+										   startFactor)
+	def ranking(self):
+		"""
+			Returns the top-k nodes with the highest approximated betwenness
+			centrality and their scores.
+
+		Returns
+		-------
+		list(int, double)
+			A list of pairs (node, betweenness) representing the top-k ranking.
+		"""
+		return (<_KadabraBetweenness*>(self._this)).ranking()
+
+	def topkNodesList(self):
+		"""
+			Returns the top-k nodes with the highest approximated betwenness
+			centrality.
+
+		Returns
+		-------
+		list(int)
+			A list with the top-k nodes with highest approximated betweenness
+			centrality.
+		"""
+		return (<_KadabraBetweenness*>(self._this)).topkNodesList()
+
+	def topkScoresList(self):
+		"""
+			Returns the top-k scores of the nodes with the highest approximated
+			betwenness centrality.
+
+		Returns
+		-------
+		list(double)
+			A list with the top-k scores of the nodes with highest approximated
+			betweenness centrality.
+		"""
+		return (<_KadabraBetweenness*>(self._this)).topkScoresList()
 
 
 cdef extern from "cpp/centrality/EstimateBetweenness.h":

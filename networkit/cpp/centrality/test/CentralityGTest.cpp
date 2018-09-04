@@ -30,6 +30,7 @@
 #include "../GroupDegree.h"
 #include "../HarmonicCloseness.h"
 #include "../KPathCentrality.h"
+#include "../KadabraBetweenness.h"
 #include "../KatzCentrality.h"
 #include "../LaplacianCentrality.h"
 #include "../LocalClusteringCoefficient.h"
@@ -1429,5 +1430,14 @@ TEST_F(CentralityGTest, testGroupCloseness) {
 	}
 
 	EXPECT_NEAR(gc.scoreOfGroup(apx), 1.0, 1e-5);
+}
+
+TEST_F(CentralityGTest, testKadabraRun) {
+	Aux::Random::setSeed(42, false);
+	Graph g = ErdosRenyiGenerator(20, 0.05).generate();
+	count k = 3;
+
+	KadabraBetweenness kadabra(g, k);
+	kadabra.run();
 }
 } /* namespace NetworKit */
