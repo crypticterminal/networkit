@@ -22,7 +22,7 @@ Status::Status(const count k)
 
 KadabraBetweenness::KadabraBetweenness(const Graph &G, const count k,
                                        const double delta, const double err,
-                                       const count unionSample,
+                                       count unionSample,
                                        const count startFactor)
     : G(G), k(k), delta(delta), err(err), n(G.upperNodeIdBound()),
       startFactor(startFactor), unionSample(unionSample), absolute(k == 0),

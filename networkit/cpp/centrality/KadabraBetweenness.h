@@ -53,12 +53,12 @@ class KadabraBetweenness : public Algorithm {
 public:
 	KadabraBetweenness(const Graph &G, const count k = 1,
 	                   const double delta = 0.1, const double err = 0.01,
-	                   const count unionSample = 0,
-	                   const count startFactor = 100);
+	                   count unionSample = 0, const count startFactor = 100);
 	void run() override;
 	std::vector<std::pair<node, double>> ranking() const;
 	std::vector<node> topkNodesList() const;
 	std::vector<double> topkScoresList() const;
+	count getNumberOfIterations() const;
 
 protected:
 	const Graph &G;
@@ -136,6 +136,10 @@ KadabraBetweenness::ranking() const {
 		result[i] = std::make_pair(topkNodes[i], topkScores[i]);
 	}
 	return result;
+}
+
+inline count KadabraBetweenness::getNumberOfIterations() const {
+	return nPairs;
 }
 
 } // namespace NetworKit
