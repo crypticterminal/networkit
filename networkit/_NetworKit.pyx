@@ -7054,6 +7054,8 @@ cdef class KadabraBetweenness(Algorithm):
 		(1 <= k <= n.)
 	delta : double
 		Desired confidence for the results.
+        err : double
+                Desired absolute error.
 	unionSample : count
 		Algorithm parameter # TODO: be more specific
 	startFactor : count
