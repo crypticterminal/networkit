@@ -7040,6 +7040,7 @@ cdef extern from "cpp/centrality/KadabraBetweenness.h":
 		vector[pair[node, double]] ranking() except +
 		vector[node] topkNodesList() except +
 		vector[double] topkScoresList() except +
+		count getNumberOfIterations() except +
 
 cdef class KadabraBetweenness(Algorithm):
 	"""
@@ -7103,6 +7104,9 @@ cdef class KadabraBetweenness(Algorithm):
 			betweenness centrality.
 		"""
 		return (<_KadabraBetweenness*>(self._this)).topkScoresList()
+
+	def getNumberOfIterations(self):
+		return (<_KadabraBetweenness*>(self._this)).getNumberOfIterations()
 
 
 cdef extern from "cpp/centrality/EstimateBetweenness.h":
