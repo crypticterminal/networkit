@@ -299,6 +299,7 @@ cdef extern from "cpp/graph/Graph.h":
 		void setWeight(node u, node v, edgeweight w) except +
 		void increaseWeight(node u, node v, edgeweight w) except +
 		void removeEdge(node u, node v) except +
+		void removeEdgesFromIsolatedSet(vector[node] nodes) except +
 		void removeSelfLoops() except +
 		void swapEdge(node s1, node t1, node s2, node t2) except +
 		void compactEdges() except +
@@ -736,6 +737,14 @@ cdef class Graph:
 			Endpoint of edge.
 		"""
 		self._this.removeEdge(u, v)
+		return self
+
+	def removeEdgesFromIsolatedSet(self, nodes):
+		"""
+			Efficiently removes all the edges adjacent to a set of nodes that is not connected
+			to the rest of the graph. This is meant to optimize the Kadabra algorithm.
+		"""
+		self._this.removeEdgesFromIsolatedSet(nodes)
 		return self
 
 	def removeSelfLoops(self):

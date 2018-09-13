@@ -360,6 +360,7 @@ std::vector<node> SpSampler::randomPath() {
 		if (ballInd[y] == 0) {
 			(*sumDegsCur) += getDegree(G, y, useDegreeIn);
 			nPaths[y] = nPaths[x];
+			assert(ballInd[x] != 0);
 			ballInd[y] = ballInd[x];
 			q[endQ++] = y;
 			(*newEndCur)++;
@@ -411,7 +412,7 @@ std::vector<node> SpSampler::randomPath() {
 	}
 
 	if (spEdges.size() == 0) {
-		removeAllEdges();
+		removeAllEdges(endQ);
 		assert(pred.numberOfEdges() == 0);
 		std::fill(ballInd.begin(), ballInd.end(), 0);
 		return std::vector<node>();
@@ -434,7 +435,7 @@ std::vector<node> SpSampler::randomPath() {
 	}
 
 	std::fill(ballInd.begin(), ballInd.end(), 0);
-	removeAllEdges();
+	removeAllEdges(endQ);
 	return path;
 }
 
@@ -465,35 +466,10 @@ void SpSampler::backtrackPath(const node u, const node v, const node start,
 	}
 }
 
-void SpSampler::removeAllEdges() {
-	for (auto edge : pred.edges()) {
-		pred.removeEdge(edge.first, edge.second);
-	}
-}
-
-void SpSampler::removeSomeEdges(const std::vector<node> &vertices,
-                                const count length) {
-	node u;
-	for (count i = 0; i < length; ++i) {
-		u = vertices[i];
-		auto removeNeighbors = [&](node u, std::vector<node> neighbors,
-		                           bool reverse = false) {
-			for (node v : neighbors) {
-				if (reverse) {
-					pred.removeEdge(v, u);
-				} else {
-					pred.removeEdge(u, v);
-				}
-			}
-		};
-
-		removeNeighbors(u, pred.neighbors(u));
-		if (pred.isDirected()) {
-			std::vector<node> inNeighbors;
-			pred.forInNeighborsOf(u, [&](node v) { inNeighbors.push_back(v); });
-			removeNeighbors(u, inNeighbors);
-		}
-	}
+void SpSampler::removeAllEdges(const count endQ) {
+		std::vector<node> resizedQ(endQ);
+		std::copy(q.begin(), q.begin() + endQ, resizedQ.begin());
+		pred.removeEdgesFromIsolatedSet(resizedQ);
 }
 
 count SpSampler::getDegree(const Graph &graph, node z, bool useDegreeIn) {

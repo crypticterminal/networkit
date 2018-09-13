@@ -38,14 +38,13 @@ private:
 	Graph pred;
 	std::vector<count> ballInd;
 	std::vector<count> dist;
-	std::vector<count> q;
 	std::vector<count> nPaths;
+	std::vector<node> q;
 
 	inline node randomNode() const;
 	void backtrackPath(const node u, const node v, const node start,
 	                   std::vector<node> &path);
-	void removeSomeEdges(const std::vector<node> &vertices, const count length);
-	void removeAllEdges();
+	void removeAllEdges(const count endQ);
 	count getDegree(const Graph &graph, node y, bool useDegreeIn);
 };
 

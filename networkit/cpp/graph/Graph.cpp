@@ -698,6 +698,33 @@ void Graph::removeEdge(node u, node v) {
 	// cause the edge is marked as deleted and we have no null values for the attributes
 }
 
+void Graph::removeEdgesFromIsolatedSet(const std::vector<node> &nodesInSet) {
+	count removedEdges = 0;
+	for (node u : nodesInSet) {
+		removedEdges += outDeg[u];
+		outDeg[u] = 0;
+		outEdges[u].clear();
+		if (this->weighted) {
+			outEdgeWeights[u].clear();
+		}
+		if (this->isDirected()) {
+			inDeg[u] = 0;
+			inEdges[u].clear();
+			if (this->weighted) {
+				inEdgeWeights[u].clear();
+			}
+		}
+	}
+	for (node u : nodes()) {
+		assert(inDeg[u] == 0);
+		assert(outDeg[u] == 0);
+		assert(inEdges[u].size() == 0);
+		assert(outEdges[u].size() == 0);
+	}
+	assert(this->m == removedEdges);
+	this->m = 0;
+}
+
 void Graph::removeSelfLoops() {
 	this->forEdges([&](node u, node v, edgeweight ew) {
 		if (u == v) {
