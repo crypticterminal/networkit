@@ -294,16 +294,19 @@ void KadabraBetweenness::run() {
 	}
 
 	timer.stop();
-	std::cout << "Time for first part " << timer.elapsedMilliseconds()/1000. << std::endl;
+	std::cout << "Time for first part " << timer.elapsedMilliseconds() / 1000.
+	          << std::endl;
 	timer.start();
 	computeDeltaGuess();
 	timer.stop();
-	std::cout << "Time for delta guess " << timer.elapsedMilliseconds()/1000. << std::endl;
-	timer.start();
+	std::cout << "Time for delta guess " << timer.elapsedMilliseconds() / 1000.
+	          << std::endl;
 	nPairs = 0;
 	fillPQ();
 	std::fill(approx.begin(), approx.end(), 0);
-
+	double time_comp_finished = 0.;
+	double time_round = 0.;
+	double time_get_status = 0.;
 #pragma omp parallel
 	{
 		SpSampler sampler(G, seeds[omp_get_thread_num()]);
@@ -312,11 +315,20 @@ void KadabraBetweenness::run() {
 		bool stop = false;
 
 		while (!stop && status.nPairs < omega) {
+			timer.start();
 			for (unsigned short i = 0; i <= 10; ++i) {
 				oneRound(sampler);
 			}
+			timer.stop();
+			time_round += timer.elapsedMilliseconds();
+			timer.start();
 			getStatus(&status);
+			timer.stop();
+			time_get_status += timer.elapsedMilliseconds();
+			timer.start();
 			stop = computeFinished(&status);
+			timer.stop();
+			time_comp_finished += timer.elapsedMilliseconds();
 		}
 	}
 
@@ -326,8 +338,10 @@ void KadabraBetweenness::run() {
 	fillResult(&status);
 
 	hasRun = true;
-	timer.stop();
-	std::cout << "Time for second part = " << timer.elapsedMilliseconds()/1000. << std::endl;
+	std::cout << "Time for compute finished = " << time_comp_finished / 1000.
+	          << std::endl;
+	std::cout << "Time one round = " << time_round / 1000. << std::endl;
+	std::cout << "Time get status = " << time_get_status / 1000. << std::endl;
 }
 
 SpSampler::SpSampler(const Graph &G, const count seed)
@@ -478,9 +492,9 @@ void SpSampler::backtrackPath(const node u, const node v, const node start,
 }
 
 void SpSampler::removeAllEdges(const count endQ) {
-		std::vector<node> resizedQ(endQ);
-		std::copy(q.begin(), q.begin() + endQ, resizedQ.begin());
-		pred.removeEdgesFromIsolatedSet(resizedQ);
+	std::vector<node> resizedQ(endQ);
+	std::copy(q.begin(), q.begin() + endQ, resizedQ.begin());
+	pred.removeEdgesFromIsolatedSet(resizedQ);
 }
 
 count SpSampler::getDegree(const Graph &graph, node z, bool useDegreeIn) {
