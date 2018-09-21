@@ -9,6 +9,7 @@
 #include <omp.h>
 
 #include "../auxiliary/Random.h"
+#include "../auxiliary/Timer.h"
 #include "../distance/APSP.h"
 #include "../distance/Diameter.h"
 #include "KadabraBetweenness.h"
@@ -254,6 +255,8 @@ void KadabraBetweenness::fillPQ() {
 }
 
 void KadabraBetweenness::run() {
+	Aux::Timer timer;
+	timer.start();
 	init();
 
 	// TODO: check if exact diameter is required or if an upper bound is correct.
@@ -290,7 +293,13 @@ void KadabraBetweenness::run() {
 		}
 	}
 
+	timer.stop();
+	std::cout << "Time for first part " << timer.elapsedMilliseconds()/1000. << std::endl;
+	timer.start();
 	computeDeltaGuess();
+	timer.stop();
+	std::cout << "Time for delta guess " << timer.elapsedMilliseconds()/1000. << std::endl;
+	timer.start();
 	nPairs = 0;
 	fillPQ();
 	std::fill(approx.begin(), approx.end(), 0);
@@ -317,6 +326,8 @@ void KadabraBetweenness::run() {
 	fillResult(&status);
 
 	hasRun = true;
+	timer.stop();
+	std::cout << "Time for second part = " << timer.elapsedMilliseconds()/1000. << std::endl;
 }
 
 SpSampler::SpSampler(const Graph &G, const count seed)
