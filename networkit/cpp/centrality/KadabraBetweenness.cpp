@@ -17,30 +17,30 @@
 namespace NetworKit {
 
 Status::Status(const count k)
-    : k(k), top(std::vector<node>(k)), approxTop(std::vector<double>(k)),
-      finished(std::vector<bool>(k)), bet(std::vector<double>(k)),
-      errL(std::vector<double>(k)), errU(std::vector<double>(k)) {}
+		: k(k), top(std::vector<node>(k)), approxTop(std::vector<double>(k)),
+			finished(std::vector<bool>(k)), bet(std::vector<double>(k)),
+			errL(std::vector<double>(k)), errU(std::vector<double>(k)) {}
 
 KadabraBetweenness::KadabraBetweenness(const Graph &G, const count k,
-                                       const double delta, const double err,
-                                       count unionSample,
-                                       const count startFactor)
-    : G(G), k(k), delta(delta), err(err), n(G.upperNodeIdBound()),
-      startFactor(startFactor), unionSample(unionSample), absolute(k == 0),
-      top(n) {
+																			 const double delta, const double err,
+																			 count unionSample,
+																			 const count startFactor)
+		: G(G), k(k), delta(delta), err(err), n(G.upperNodeIdBound()),
+			startFactor(startFactor), unionSample(unionSample), absolute(k == 0),
+			top(n, n) {
 	if (k > n) {
 		throw std::runtime_error(
-		    "k is higher than the number of nodes of the input graph!");
+				"k is higher than the number of nodes of the input graph!");
 	}
 
 	if (delta >= 1 || delta <= 0) {
 		throw std::runtime_error(
-		    "Delta should be greater than 0 and smaller than 1.");
+				"Delta should be greater than 0 and smaller than 1.");
 	}
 
 	if (err >= 1 || err <= 0) {
 		throw std::runtime_error(
-		    "The error should be greater than 0 and smaller than 1.");
+				"The error should be greater than 0 and smaller than 1.");
 	}
 }
 
@@ -72,12 +72,12 @@ bool KadabraBetweenness::computeFinished(Status *status) const {
 				status->finished[i] = (bet[i] - errL[i] > bet[i + 1] + errU[i + 1]);
 			} else if (i < k) {
 				status->finished[i] = (bet[i - 1] - errL[i - 1] > bet[i] + errU[i]) &&
-				                      (bet[i] - errL[i] > bet[i + 1] + errU[i + 1]);
+															(bet[i] - errL[i] > bet[i + 1] + errU[i + 1]);
 			} else {
 				status->finished[i] = bet[k - 1] - errU[k - 1] > bet[i] + errU[i];
 			}
 			status->finished[i] =
-			    status->finished[i] || (errL[i] < err && errU[i] < err);
+					status->finished[i] || (errL[i] < err && errU[i] < err);
 			allFinished = allFinished && status->finished[i];
 		}
 	}
@@ -88,22 +88,22 @@ bool KadabraBetweenness::computeFinished(Status *status) const {
 // Computes the function f that bounds the betweenness of a vertex from below.
 // For more information, see Borassi, Natale (2016).
 double KadabraBetweenness::computeF(const double btilde, const count iterNum,
-                                    const double deltaL) const {
+																		const double deltaL) const {
 	double tmp = (((double)omega) / iterNum - 1. / 3);
 	double errChern = (std::log(1. / deltaL)) * 1. / iterNum *
-	                  (-tmp + std::sqrt(tmp * tmp + 2 * btilde * omega /
-	                                                    (std::log(1. / deltaL))));
+										(-tmp + std::sqrt(tmp * tmp + 2 * btilde * omega /
+																											(std::log(1. / deltaL))));
 	return std::min(errChern, btilde);
 }
 
 // Computes the function g that bounds the betweenness of a vertex from above.
 // For more information, see Borassi, Natale (2016).
 double KadabraBetweenness::computeG(const double btilde, const count iterNum,
-                                    const double deltaU) const {
+																		const double deltaU) const {
 	double tmp = (((double)omega) / iterNum + 1. / 3);
 	double errChern = (std::log(1. / deltaU)) * 1. / iterNum *
-	                  (tmp + std::sqrt(tmp * tmp + 2 * btilde * omega /
-	                                                   (std::log(1. / deltaU))));
+										(tmp + std::sqrt(tmp * tmp + 2 * btilde * omega /
+																										 (std::log(1. / deltaU))));
 	return std::min(errChern, 1 - btilde);
 }
 
@@ -114,7 +114,7 @@ void KadabraBetweenness::oneRound(SpSampler &sampler) {
 		++nPairs;
 		for (node u : path) {
 			++approx[u];
-			top.changeKey(-approx[u], u);
+			top.insert(u, approx[u]);
 		}
 	}
 }
@@ -122,10 +122,9 @@ void KadabraBetweenness::oneRound(SpSampler &sampler) {
 void KadabraBetweenness::getStatus(Status *status) const {
 #pragma omp critical
 	{
-		auto topCopy = Aux::PrioQueue<int64_t, node>(top);
 		if (status != NULL) {
 			for (count i = 0; i < unionSample; ++i) {
-				status->top[i] = topCopy.extractMin().second;
+				status->top[i] = top.get_element(i);
 				status->approxTop[i] = approx[status->top[i]];
 			}
 			status->nPairs = nPairs;
@@ -134,8 +133,8 @@ void KadabraBetweenness::getStatus(Status *status) const {
 }
 
 void KadabraBetweenness::computeBetErr(Status *status, std::vector<double> &bet,
-                                       std::vector<double> &errL,
-                                       std::vector<double> &errU) const {
+																			 std::vector<double> &errL,
+																			 std::vector<double> &errU) const {
 	count i;
 	double maxErr = std::sqrt(startFactor) * err / 4.;
 
@@ -180,8 +179,8 @@ void KadabraBetweenness::computeBetErr(Status *status, std::vector<double> &bet,
 
 void KadabraBetweenness::computeDeltaGuess() {
 	double a = 0,
-	       b = 1. / err / err * std::log(n * 4 * (1 - balancingFactor) / delta),
-	       c = (a + b) / 2;
+				 b = 1. / err / err * std::log(n * 4 * (1 - balancingFactor) / delta),
+				 c = (a + b) / 2;
 	double sum;
 
 	Status status(unionSample);
@@ -207,11 +206,11 @@ void KadabraBetweenness::computeDeltaGuess() {
 		}
 
 		sum += std::exp(-c * errL[unionSample - 1] * errL[unionSample - 1] /
-		                bet[unionSample - 1]) *
-		       (n - unionSample);
+										bet[unionSample - 1]) *
+					 (n - unionSample);
 		sum += std::exp(-c * errU[unionSample - 1] * errU[unionSample - 1] /
-		                bet[unionSample - 1]) *
-		       (n - unionSample);
+										bet[unionSample - 1]) *
+					 (n - unionSample);
 
 		if (sum >= delta / 2. * (1 - balancingFactor)) {
 			a = c;
@@ -221,11 +220,11 @@ void KadabraBetweenness::computeDeltaGuess() {
 	}
 
 	delta_l_min_guess = std::exp(-b * errL[unionSample - 1] *
-	                             errL[unionSample - 1] / bet[unionSample - 1]) +
-	                    delta * balancingFactor / 4. / (double)n;
+															 errL[unionSample - 1] / bet[unionSample - 1]) +
+											delta * balancingFactor / 4. / (double)n;
 	delta_u_min_guess = std::exp(-b * errU[unionSample - 1] *
-	                             errU[unionSample - 1] / bet[unionSample - 1]) +
-	                    delta * balancingFactor / 4. / (double)n;
+															 errU[unionSample - 1] / bet[unionSample - 1]) +
+											delta * balancingFactor / 4. / (double)n;
 
 	std::fill(delta_l_guess.begin(), delta_l_guess.end(), delta_l_min_guess);
 	std::fill(delta_u_guess.begin(), delta_u_guess.end(), delta_u_min_guess);
@@ -233,7 +232,7 @@ void KadabraBetweenness::computeDeltaGuess() {
 	for (count i = 0; i < unionSample; ++i) {
 		node v = status.top[i];
 		delta_l_guess[v] = std::exp(-b * errL[i] * errL[i] / bet[i]) +
-		                   delta * balancingFactor / 4. / (double)n;
+											 delta * balancingFactor / 4. / (double)n;
 	}
 }
 
@@ -242,16 +241,6 @@ void KadabraBetweenness::init() {
 	delta_l_guess.resize(n);
 	delta_u_guess.resize(n);
 	nPairs = 0;
-}
-
-void KadabraBetweenness::fillPQ() {
-	while (top.size() > 0) {
-		top.extractMin();
-	}
-
-	for (node i = 0; i < n; ++i) {
-		top.insert(0, i);
-	}
 }
 
 void KadabraBetweenness::run() {
@@ -266,18 +255,16 @@ void KadabraBetweenness::run() {
 	// Getting diameter upper bound
 	int32_t diameter = diam.getDiameter().second;
 
-	fillPQ();
-
 	omega =
-	    0.5 / err / err * (std::log2(diameter - 1) + 1 + std::log(0.5 / delta));
+			0.5 / err / err * (std::log2(diameter - 1) + 1 + std::log(0.5 / delta));
 
 	const count tau = omega / startFactor;
 
 	if (unionSample == 0) {
 		unionSample =
-		    std::min(n, (count)std::max((2 * std::sqrt(G.numberOfEdges()) /
-		                                 omp_get_max_threads()),
-		                                k + 20.));
+				std::min(n, (count)std::max((2 * std::sqrt(G.numberOfEdges()) /
+																		 omp_get_max_threads()),
+																		k + 20.));
 	}
 
 	std::vector<count> seeds(omp_get_max_threads());
@@ -295,14 +282,14 @@ void KadabraBetweenness::run() {
 
 	timer.stop();
 	std::cout << "Time for first part " << timer.elapsedMilliseconds() / 1000.
-	          << std::endl;
+						<< std::endl;
 	timer.start();
 	computeDeltaGuess();
 	timer.stop();
 	std::cout << "Time for delta guess " << timer.elapsedMilliseconds() / 1000.
-	          << std::endl;
+						<< std::endl;
 	nPairs = 0;
-	fillPQ();
+	top.init();
 	std::fill(approx.begin(), approx.end(), 0);
 	double time_comp_finished = 0.;
 	double time_round = 0.;
@@ -339,13 +326,13 @@ void KadabraBetweenness::run() {
 
 	hasRun = true;
 	std::cout << "Time for compute finished = " << time_comp_finished / 1000.
-	          << std::endl;
+						<< std::endl;
 	std::cout << "Time one round = " << time_round / 1000. << std::endl;
 	std::cout << "Time get status = " << time_get_status / 1000. << std::endl;
 }
 
 SpSampler::SpSampler(const Graph &G, const count seed)
-    : G(G), n(G.upperNodeIdBound()), pred(n, false, true) {
+		: G(G), n(G.upperNodeIdBound()), pred(n, false, true) {
 	q.resize(n);
 	ballInd.resize(n);
 	dist.resize(n);
@@ -377,7 +364,7 @@ std::vector<node> SpSampler::randomPath() {
 	bool hasToStop = false;
 	bool useDegreeIn;
 	count startU = 0, startV = 1, endU = 1, endV = 2, startCur, endCur,
-	      *newEndCur;
+				*newEndCur;
 	count sumDegsU = 0, sumDegsV = 0, *sumDegsCur;
 	count totWeight = 0, curEdge = 0;
 
@@ -465,7 +452,7 @@ std::vector<node> SpSampler::randomPath() {
 }
 
 void SpSampler::backtrackPath(const node u, const node v, const node start,
-                              std::vector<node> &path) {
+															std::vector<node> &path) {
 	if (start == u || start == v) {
 		return;
 	}
