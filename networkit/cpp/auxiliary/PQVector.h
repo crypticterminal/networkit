@@ -24,10 +24,9 @@ private:
 	std::vector<uint64_t> position;
 	uint64_t virtual_size;
 	const uint64_t size;
-	const uint64_t max_key;
 
 public:
-	PQVector(const uint64_t size, const uint64_t max_key);
+	PQVector(const uint64_t size);
 	void insert(const uint64_t new_element, const double new_value);
 	double get_value(const uint64_t i) const { return values[i]; }
 	uint64_t get_element(const uint64_t i) const { return elements[i]; }
@@ -41,15 +40,15 @@ public:
 	void init();
 };
 
-inline Aux::PQVector::PQVector(const uint64_t size, const uint64_t max_key)
-		: size(size), max_key(max_key) {
+inline Aux::PQVector::PQVector(const uint64_t size)
+		: size(size) {
 	init();
 }
 
 inline void Aux::PQVector::init() {
 	elements.resize(size);
 	values.assign(size, 0.);
-	position.resize(max_key);
+	position.resize(size);
 	for (uint64_t i = 0; i < size; ++i) {
 		elements[i] = i;
 		position[i] = i;

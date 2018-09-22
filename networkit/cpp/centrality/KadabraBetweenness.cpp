@@ -27,7 +27,7 @@ KadabraBetweenness::KadabraBetweenness(const Graph &G, const count k,
 																			 const count startFactor)
 		: G(G), k(k), delta(delta), err(err), n(G.upperNodeIdBound()),
 			startFactor(startFactor), unionSample(unionSample), absolute(k == 0),
-			top(n, n) {
+			top(n) {
 	if (k > n) {
 		throw std::runtime_error(
 				"k is higher than the number of nodes of the input graph!");
