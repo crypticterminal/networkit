@@ -25,6 +25,12 @@ public:
 	std::vector<double> errL;
 	std::vector<double> errU;
 	count nPairs;
+
+	void initAbsolute() {
+		for (count i = 0; i < k; ++i) {
+			top[i] = i;
+		}
+	}
 };
 
 class SpSampler {
@@ -43,7 +49,7 @@ private:
 
 	inline node randomNode() const;
 	void backtrackPath(const node u, const node v, const node start,
-										 std::vector<node> &path);
+	                   std::vector<node> &path);
 	void removeAllEdges(const count endQ);
 	count getDegree(const Graph &graph, node y, bool useDegreeIn);
 };
@@ -51,8 +57,8 @@ private:
 class KadabraBetweenness : public Algorithm {
 public:
 	KadabraBetweenness(const Graph &G, const count k = 1,
-										 const double delta = 0.1, const double err = 0.01,
-										 count unionSample = 0, const count startFactor = 100);
+	                   const double delta = 0.1, const double err = 0.01,
+	                   count unionSample = 0, const count startFactor = 100);
 	void run() override;
 	std::vector<std::pair<node, double>> ranking() const;
 	std::vector<node> topkNodesList() const;
@@ -73,11 +79,14 @@ protected:
 	double delta_u_min_guess;
 	double omega;
 
+	count omp_max_threads;
+
 	std::vector<node> topkNodes;
 	std::vector<double> topkScores;
 	Aux::PQVector top;
 
-	std::vector<double> approx;
+	std::vector<std::vector<double>> approx;
+	std::vector<double> approx_sum;
 	std::vector<double> delta_l_guess;
 	std::vector<double> delta_u_guess;
 
@@ -86,15 +95,16 @@ protected:
 	void init();
 	void computeDeltaGuess();
 	void computeBetErr(Status *status, std::vector<double> &bet,
-										 std::vector<double> &errL,
-										 std::vector<double> &errU) const;
+	                   std::vector<double> &errL,
+	                   std::vector<double> &errU) const;
 	void oneRound(SpSampler &sampler);
 	bool computeFinished(Status *status) const;
-	void getStatus(Status *status) const;
+	void getStatus(Status *status);
+	void computeApproxParallel();
 	double computeF(const double btilde, const count iterNum,
-									const double deltaL) const;
+	                const double deltaL) const;
 	double computeG(const double btilde, const count iterNum,
-									const double deltaU) const;
+	                const double deltaU) const;
 	void fillPQ();
 	void fillResult(Status *status);
 };
@@ -108,7 +118,6 @@ inline std::vector<double> KadabraBetweenness::topkScoresList() const {
 }
 
 inline void KadabraBetweenness::fillResult(Status *status) {
-	computeFinished(status);
 	topkScores.reserve(n);
 	topkNodes.reserve(n);
 	for (count i = 0; i < k; ++i) {
@@ -118,7 +127,7 @@ inline void KadabraBetweenness::fillResult(Status *status) {
 
 	double betk = status->approxTop[k - 1] / (double)status->nPairs;
 	double lbetk =
-			betk - computeF(betk, status->nPairs, delta_l_guess[status->top[k - 1]]);
+	    betk - computeF(betk, status->nPairs, delta_l_guess[status->top[k - 1]]);
 	count pos = k + 1;
 	count i;
 	for (i = k; i < status->k; ++i) {

@@ -17,9 +17,7 @@
 namespace NetworKit {
 
 Status::Status(const count k)
-    : k(k), top(std::vector<node>(k)), approxTop(std::vector<double>(k)),
-      finished(std::vector<bool>(k)), bet(std::vector<double>(k)),
-      errL(std::vector<double>(k)), errU(std::vector<double>(k)) {}
+    : k(k), top(k), approxTop(k), finished(k), bet(k), errL(k), errU(k) {}
 
 KadabraBetweenness::KadabraBetweenness(const Graph &G, const count k,
                                        const double delta, const double err,
@@ -109,27 +107,23 @@ double KadabraBetweenness::computeG(const double btilde, const count iterNum,
 
 void KadabraBetweenness::oneRound(SpSampler &sampler) {
 	auto path = sampler.randomPath();
-#pragma omp critical
-	{
-		++nPairs;
-		for (node u : path) {
-			++approx[u];
-			top.insert(u, approx[u]);
-		}
+	for (node u : path) {
+		//++approx[u];
+		// top.insert(u, approx[u]);
+		approx[omp_get_thread_num()][u] += 1.;
 	}
+#pragma omp atomic
+	++nPairs;
 }
 
-void KadabraBetweenness::getStatus(Status *status) const {
-#pragma omp critical
-	{
-		if (status != NULL) {
-			for (count i = 0; i < unionSample; ++i) {
-				status->top[i] = top.get_element(i);
-				status->approxTop[i] = approx[status->top[i]];
-			}
-			status->nPairs = nPairs;
+void KadabraBetweenness::getStatus(Status *status) {
+	for (count i = 0; i < unionSample; ++i) {
+		if (absolute) {
+			status->top[i] = top.get_element(i);
 		}
+		status->approxTop[i] = approx_sum[status->top[i]];
 	}
+	status->nPairs = nPairs;
 }
 
 void KadabraBetweenness::computeBetErr(Status *status, std::vector<double> &bet,
@@ -194,7 +188,7 @@ void KadabraBetweenness::computeDeltaGuess() {
 
 	for (count i = 0; i < unionSample; ++i) {
 		count v = status.top[i];
-		approx[v] = approx[v] / (double)nPairs;
+		approx_sum[v] = approx_sum[v] / (double)nPairs;
 	}
 
 	while (b - a > err / 10.) {
@@ -236,8 +230,20 @@ void KadabraBetweenness::computeDeltaGuess() {
 	}
 }
 
+void KadabraBetweenness::computeApproxParallel() {
+	std::fill(approx_sum.begin(), approx_sum.end(), 0.);
+#pragma omp parallel for
+	for (count i = 0; i < n; ++i) {
+		for (count j = 0; j < omp_max_threads; ++j) {
+			approx_sum[i] += approx[j][i];
+		}
+	}
+}
+
 void KadabraBetweenness::init() {
-	approx.resize(n);
+	omp_max_threads = omp_get_max_threads();
+	approx.assign(omp_max_threads, std::vector<double>(n, 0.));
+	approx_sum.resize(n);
 	delta_l_guess.resize(n);
 	delta_u_guess.resize(n);
 	nPairs = 0;
@@ -248,8 +254,8 @@ void KadabraBetweenness::run() {
 	timer.start();
 	init();
 
-	// TODO: check if exact diameter is required or if an upper bound is correct.
-	// If so, which is the maximum relative error?
+	// TODO: check if exact diameter is required or if an upper bound is
+	// correct. If so, which is the maximum relative error?
 	Diameter diam(G, estimatedRange, 0);
 	diam.run();
 	// Getting diameter upper bound
@@ -261,14 +267,18 @@ void KadabraBetweenness::run() {
 	const count tau = omega / startFactor;
 
 	if (unionSample == 0) {
-		unionSample =
-		    std::min(n, (count)std::max((2 * std::sqrt(G.numberOfEdges()) /
-		                                 omp_get_max_threads()),
-		                                k + 20.));
+		if (absolute) {
+			unionSample = n;
+		} else {
+			unionSample = std::min(
+			    n,
+			    (count)std::max((2 * std::sqrt(G.numberOfEdges()) / omp_max_threads),
+			                    k + 20.));
+		}
 	}
 
-	std::vector<count> seeds(omp_get_max_threads());
-	for (count i = 0; i < omp_get_max_threads(); ++i) {
+	std::vector<count> seeds(omp_max_threads);
+	for (count i = 0; i < omp_max_threads; ++i) {
 		seeds[i] = std::rand();
 	}
 
@@ -280,6 +290,7 @@ void KadabraBetweenness::run() {
 		}
 	}
 
+	computeApproxParallel();
 	timer.stop();
 	std::cout << "Time for first part " << timer.elapsedMilliseconds() / 1000.
 	          << std::endl;
@@ -289,36 +300,57 @@ void KadabraBetweenness::run() {
 	std::cout << "Time for delta guess " << timer.elapsedMilliseconds() / 1000.
 	          << std::endl;
 	nPairs = 0;
-	top.init();
-	std::fill(approx.begin(), approx.end(), 0);
+	if (!absolute) {
+		top.init();
+	}
 	double time_comp_finished = 0.;
 	double time_round = 0.;
 	double time_get_status = 0.;
+	bool stop = false;
+
+#pragma omp parallel for
+	for (count i = 0; i < omp_max_threads; ++i) {
+		std::fill(approx[i].begin(), approx[i].end(), 0.);
+	}
+
 #pragma omp parallel
 	{
 		SpSampler sampler(G, seeds[omp_get_thread_num()]);
 		Status status(unionSample);
 		status.nPairs = 0;
-		bool stop = false;
+		if (absolute) {
+			status.initAbsolute();
+		}
 
-		while (!stop && status.nPairs < omega) {
+		while (!stop && nPairs < omega) {
 			timer.start();
-			for (unsigned short i = 0; i <= 10; ++i) {
+			for (unsigned short i = 0; i < 11; ++i) {
 				oneRound(sampler);
 			}
 			timer.stop();
 			time_round += timer.elapsedMilliseconds();
-			timer.start();
-			getStatus(&status);
-			timer.stop();
-			time_get_status += timer.elapsedMilliseconds();
-			timer.start();
-			stop = computeFinished(&status);
-			timer.stop();
-			time_comp_finished += timer.elapsedMilliseconds();
+			if (omp_get_thread_num() == 0) {
+				for (count i = 0; i < n; ++i) {
+					approx_sum[i] = 0.;
+					for (count j = 0; j < omp_max_threads; ++j) {
+						approx_sum[i] += approx[j][i];
+					}
+				}
+
+				timer.start();
+				getStatus(&status);
+				timer.stop();
+				time_get_status += timer.elapsedMilliseconds();
+
+				timer.start();
+				stop = computeFinished(&status) && status.nPairs < omega;
+				timer.stop();
+				time_comp_finished += timer.elapsedMilliseconds();
+			}
 		}
 	}
 
+	computeApproxParallel();
 	nPairs += tau;
 	Status status(unionSample);
 	getStatus(&status);
