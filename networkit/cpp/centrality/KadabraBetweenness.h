@@ -100,7 +100,7 @@ protected:
 	void oneRound(SpSampler &sampler);
 	bool computeFinished(Status *status) const;
 	void getStatus(Status *status);
-	void computeApproxParallel();
+	void computeApproxParallel(const bool normalize = false);
 	double computeF(const double btilde, const count iterNum,
 	                const double deltaL) const;
 	double computeG(const double btilde, const count iterNum,
@@ -120,19 +120,31 @@ inline std::vector<double> KadabraBetweenness::topkScoresList() const {
 inline void KadabraBetweenness::fillResult(Status *status) {
 	topkScores.reserve(n);
 	topkNodes.reserve(n);
-	for (count i = 0; i < k; ++i) {
-		topkScores.push_back(status->approxTop[i] / (double)status->nPairs);
-		topkNodes.push_back(status->top[i]);
-	}
+	if (absolute) {
+		top.init();
+		for (count i = 0; i < n; ++i) {
+			top.insert(i, approx_sum[i]);
+		}
+		for (count i = 0; i < n; ++i) {
+			topkNodes.push_back(top.get_element(i));
+			topkScores.push_back(top.get_value(i));
+		}
+	} else {
+		computeFinished(status);
+		for (count i = 0; i < k; ++i) {
+			topkScores.push_back(status->approxTop[i] / (double)status->nPairs);
+			topkNodes.push_back(status->top[i]);
+		}
 
-	double betk = status->approxTop[k - 1] / (double)status->nPairs;
-	double lbetk =
-	    betk - computeF(betk, status->nPairs, delta_l_guess[status->top[k - 1]]);
-	count pos = k + 1;
-	count i;
-	for (i = k; i < status->k; ++i) {
-		topkScores.push_back(status->approxTop[i] / (double)status->nPairs);
-		topkNodes.push_back(status->top[i]);
+		double betk = status->approxTop[k - 1] / (double)status->nPairs;
+		double lbetk = betk - computeF(betk, status->nPairs,
+		                               delta_l_guess[status->top[k - 1]]);
+		count pos = k + 1;
+		count i;
+		for (i = k; i < status->k; ++i) {
+			topkScores.push_back(status->approxTop[i] / (double)status->nPairs);
+			topkNodes.push_back(status->top[i]);
+		}
 	}
 }
 
