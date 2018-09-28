@@ -138,7 +138,6 @@ void KadabraBetweenness::computeBetErr(Status *status, std::vector<double> &bet,
 	}
 
 	if (absolute) {
-		assert(status->k == n);
 		for (i = 0; i < status->k; ++i) {
 			errL[i] = err;
 			errU[i] = err;
@@ -233,9 +232,9 @@ void KadabraBetweenness::computeDeltaGuess() {
 }
 
 void KadabraBetweenness::computeApproxParallel(const bool normalize) {
-	std::fill(approx_sum.begin(), approx_sum.end(), 0.);
 #pragma omp parallel for
 	for (count i = 0; i < n; ++i) {
+		approx_sum[i] = 0.;
 		for (count j = 0; j < omp_max_threads; ++j) {
 			approx_sum[i] += approx[j][i];
 		}
