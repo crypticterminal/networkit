@@ -25,12 +25,6 @@ public:
 	std::vector<double> errL;
 	std::vector<double> errU;
 	count nPairs;
-
-	void initAbsolute() {
-		for (count i = 0; i < k; ++i) {
-			top[i] = i;
-		}
-	}
 };
 
 class SpSampler {
@@ -99,7 +93,7 @@ protected:
 	                   std::vector<double> &errU) const;
 	void oneRound(SpSampler &sampler);
 	bool computeFinished(Status *status) const;
-	void getStatus(Status *status);
+	void getStatus(Status *status) const;
 	void computeApproxParallel(const bool normalize = false);
 	double computeF(const double btilde, const count iterNum,
 	                const double deltaL) const;

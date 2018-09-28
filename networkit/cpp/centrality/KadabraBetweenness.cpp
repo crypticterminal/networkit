@@ -117,14 +117,18 @@ void KadabraBetweenness::oneRound(SpSampler &sampler) {
 	++nPairs;
 }
 
-void KadabraBetweenness::getStatus(Status *status) {
-	for (count i = 0; i < unionSample; ++i) {
-		if (!absolute) {
-			status->top[i] = top.get_element(i);
+void KadabraBetweenness::getStatus(Status *status) const {
+	if (status != NULL) {
+		for (count i = 0; i < unionSample; ++i) {
+			if (!absolute) {
+				status->top[i] = top.get_element(i);
+			} else {
+				status->top[i] = i;
+			}
+			status->approxTop[i] = approx_sum[status->top[i]];
 		}
-		status->approxTop[i] = approx_sum[status->top[i]];
+		status->nPairs = nPairs;
 	}
-	status->nPairs = nPairs;
 }
 
 void KadabraBetweenness::computeBetErr(Status *status, std::vector<double> &bet,
@@ -133,8 +137,14 @@ void KadabraBetweenness::computeBetErr(Status *status, std::vector<double> &bet,
 	count i;
 	double maxErr = std::sqrt(startFactor) * err / 4.;
 
-	for (i = 0; i < k; ++i) {
+	for (i = 0; i < status->k; ++i) {
 		bet[i] = status->approxTop[i] / (double)status->nPairs;
+	}
+
+	std::vector<double> bet_copy(bet);
+	std::sort(bet_copy.begin(), bet_copy.end(), std::greater<double>());
+	for (i = 0; i < 10; ++i) {
+		std::cout << bet_copy[i] << std::endl;
 	}
 
 	if (absolute) {
@@ -179,6 +189,7 @@ void KadabraBetweenness::computeDeltaGuess() {
 	double sum;
 
 	Status status(unionSample);
+	// always zero..?
 	getStatus(&status);
 
 	std::vector<double> bet(status.k);
@@ -228,6 +239,8 @@ void KadabraBetweenness::computeDeltaGuess() {
 		node v = status.top[i];
 		delta_l_guess[v] = std::exp(-b * errL[i] * errL[i] / bet[i]) +
 		                   delta * balancingFactor / 4. / (double)n;
+		delta_u_guess[v] = std::exp(-b * errU[i] * errU[i] / bet[i]) +
+		                   delta * balancingFactor / 4. / (double)n;
 	}
 }
 
@@ -257,6 +270,8 @@ void KadabraBetweenness::init() {
 }
 
 void KadabraBetweenness::run() {
+	omp_set_dynamic(0);
+	omp_set_num_threads(1);
 	Aux::Timer timer;
 	timer.start();
 	init();
@@ -325,9 +340,6 @@ void KadabraBetweenness::run() {
 		SpSampler sampler(G, seeds[omp_get_thread_num()]);
 		Status status(unionSample);
 		status.nPairs = 0;
-		if (absolute) {
-			status.initAbsolute();
-		}
 
 		while (!stop && nPairs < omega) {
 			timer.start();
@@ -350,7 +362,9 @@ void KadabraBetweenness::run() {
 				time_get_status += timer.elapsedMilliseconds();
 
 				timer.start();
-				stop = computeFinished(&status);
+				bool compute_stop = computeFinished(&status);
+#pragma omp atomic write
+				stop = compute_stop;
 				timer.stop();
 				time_comp_finished += timer.elapsedMilliseconds();
 			}
@@ -361,7 +375,9 @@ void KadabraBetweenness::run() {
 	Status status(unionSample);
 	getStatus(&status);
 	fillResult(&status);
+	INFO("N Pairs = ", nPairs);
 	nPairs += tau;
+	INFO("Tau = ", tau);
 
 	hasRun = true;
 	std::cout << "Time for compute finished = " << time_comp_finished / 1000.
